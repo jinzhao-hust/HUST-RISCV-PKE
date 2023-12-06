@@ -9,7 +9,7 @@ struct my_structure {
   char c;
   int n;
 };
-
+// BUG 压根就没有检测内存是否释放
 int main(void) {
   struct my_structure* s = (struct my_structure*)naive_malloc();
   s->c = 'a';
