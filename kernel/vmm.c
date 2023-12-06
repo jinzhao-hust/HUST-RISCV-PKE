@@ -199,5 +199,4 @@ void user_vm_unmap(pagetable_t page_dir, uint64 va, uint64 size, int free) {
       PTE++;
     }
   }
-  return ;
 }
