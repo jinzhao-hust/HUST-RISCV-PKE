@@ -49,3 +49,11 @@ int printu(const char* s, ...) {
 int exit(int code) {
   return do_user_call(SYS_user_exit, code, 0, 0, 0, 0, 0, 0); 
 }
+
+//
+// print_backtrace(int level) 打印函数调用栈
+// TODO lab1-4
+int print_backtrace(int level){
+    return do_user_call(SYS_user_print_backtrace,level,0,0,0,0,0,0);
+}
+
