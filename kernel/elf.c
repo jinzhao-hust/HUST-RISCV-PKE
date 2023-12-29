@@ -129,7 +129,9 @@ void load_bincode_from_host_elf(process *p) {
 
   // load elf. elf_load() is defined above.
   if (elf_load(&elfloader) != EL_OK) panic("Fail on loading elf.\n");
-
+  
+  // get function name from elf context
+  get_func_name(&elfloader);
   // entry (virtual, also physical in lab1_x) address
   p->trapframe->epc = elfloader.ehdr.entry;
 
@@ -137,4 +139,61 @@ void load_bincode_from_host_elf(process *p) {
   spike_file_close( info.f );
 
   sprint("Application program entry point (virtual address): 0x%lx\n", p->trapframe->epc);
+}
+// 存储函数信息 added for lab1_challenge1
+func_info this_func_info[32];
+uint64 func_num;
+
+
+void get_func_name(elf_ctx* ctx){
+  sprint("genshin power up \n");
+  elf_sect_header shstr_sh; // .shstrtab
+  elf_sect_header str_sh;   // .strtab
+  elf_sect_header sym_sh;   // .symtab
+  elf_header this_header = ctx->ehdr;
+  // 获取.shstrtab地址
+  uint64 shstr_sh_offset = this_header.shoff + this_header.shentsize * this_header.shstrndx;
+  // 读取.shstr的section header
+  elf_fpread(ctx, (void *)&shstr_sh, SECTION_HEADER_SIZE, shstr_sh_offset);
+  // 开辟缓冲区
+  char shstr_sect[shstr_sh.sh_size];
+  // 读取string section
+  elf_fpread(ctx,shstr_sect,shstr_sh.sh_size,shstr_sh.sh_offset); 
+  // 遍历section header寻找.symtab .strtab
+  elf_sect_header find_sect;  // 查找section header临时变量
+  uint8 find_num = 0;         // 查找结果计数
+  // section header 序号从1开始，第0项是固定的SHT_NULL, 最后一项为shstrtab  
+  for(int i = 1; i < ctx->ehdr.shnum; i++){
+    elf_fpread(ctx,&find_sect,SECTION_HEADER_SIZE,
+    this_header.shoff + this_header.shentsize * i );
+    if(strcmp((shstr_sect + find_sect.sh_name), ".symtab") == 0){
+      sym_sh = find_sect;
+      if(++find_num == 2) break;
+      continue;
+    }
+    if(strcmp((shstr_sect + find_sect.sh_name), ".strtab") == 0){
+      str_sh = find_sect;
+      if(++find_num == 2) break;
+    }
+  }
+  // 读取symtab和strtab
+  char sym_sect[sym_sh.sh_size];
+  char str_sect[str_sh.sh_size];
+  elf_fpread(ctx, sym_sect, sym_sh.sh_size, sym_sh.sh_offset);
+  elf_fpread(ctx, str_sect, str_sh.sh_size, str_sh.sh_offset);
+  int sym_num = sym_sh.sh_size / SYMBOL_SIZE;
+  elf_sym* pfind_func;
+  int func_idx = 0;
+  // 查询symtab, 获取函数名称和大小
+  for(int i = 0; i < sym_num; i++){
+    pfind_func = (elf_sym* )(sym_sect + SYMBOL_SIZE * i);
+    if(pfind_func->st_name == 0) continue;
+    if(pfind_func->st_info == 18){
+      this_func_info[func_idx].st_value = pfind_func->st_value;
+      this_func_info[func_idx].st_size = pfind_func->st_size;
+      strcpy(this_func_info[func_idx].func_name,(str_sect + pfind_func->st_name));
+      func_idx++;
+    } 
+  }
+  func_num = func_idx;
 }
