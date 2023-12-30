@@ -149,3 +149,19 @@ char* safestrcpy(char* s, const char* t, int n) {
   *s = 0;
   return os;
 }
+
+char* strrchr(const char* str, int c) {
+    const char* last_occurrence = NULL;
+
+    // 遍历字符串，查找最后一次出现的指定字符
+    while (*str != '\0') {
+        if (*str == c) {
+            last_occurrence = str;
+        }
+        str++;
+    }
+
+    // 如果找到指定字符，则返回指向最后一次出现的位置
+    // 否则返回 NULL
+    return (char* )last_occurrence;
+}
