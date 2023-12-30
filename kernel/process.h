@@ -16,6 +16,8 @@ typedef struct trapframe_t {
 
   // kernel page table. added @lab2_1
   /* offset:272 */ uint64 kernel_satp;
+  // decide if it should wake up parent when exit added @lab3_challenge1
+  uint64 wake_up_parent;
 }trapframe;
 
 // riscv-pke kernel supports at most 32 processes
@@ -89,6 +91,8 @@ typedef struct process_t {
 
   // accounting. added @lab3_3
   int tick_count;
+
+  
 }process;
 
 // switch to run user app
@@ -102,7 +106,10 @@ process* alloc_process();
 int free_process( process* proc );
 // fork a child from parent
 int do_fork(process* parent);
-
+// do wait added @lab3_challenge1
+int do_wait(int pid);
+// wake up parent  added@lab3_challenge1
+void wake_up_parent(void);
 // current running process
 extern process* current;
 

@@ -75,7 +75,6 @@ void switch_to(process* proc) {
 //
 void init_proc_pool() {
   memset( procs, 0, sizeof(process)*NPROC );
-
   for (int i = 0; i < NPROC; ++i) {
     procs[i].status = FREE;
     procs[i].pid = i;
@@ -257,4 +256,40 @@ int do_fork( process* parent)
   insert_to_ready_queue( child );
 
   return child->pid;
+}
+
+// 
+// do wait 
+// 
+int do_wait(int pid){
+    if( pid == -1){
+        for(int i = 0; i < NPROC; i++){
+            if(procs[i].parent == current && (procs[i].status == READY)){
+                current->status = BLOCKED;
+                procs[i].trapframe->wake_up_parent = 1;
+                int sub_proc_pid = procs[i].pid;
+                schedule(); // 执行这个之后就直接切换进程了
+                return sub_proc_pid;
+            }
+        }
+        if(current->status != BLOCKED) return -1;
+    } else {
+        if(pid >= 0 && pid < NPROC && procs[pid].parent != current) {
+            return -1;
+        } else {
+            current->status = BLOCKED;
+            procs[pid].trapframe->wake_up_parent = 1;
+            schedule();
+            return pid;
+        }
+    }
+    return -1;
+}
+void wake_up_parent(void){
+    if(current->trapframe->wake_up_parent){
+        if (current->parent->status == BLOCKED) {
+            current->parent->status = READY;
+            insert_to_ready_queue(current->parent);
+        }
+    }
 }
