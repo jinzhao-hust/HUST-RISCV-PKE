@@ -161,10 +161,7 @@ void *user_va_to_pa(pagetable_t page_dir, void *va) {
   // invalid PTE, and should return NULL.
   // panic( "You have to implement user_va_to_pa (convert user va to pa) to print messages in lab2_1.\n" );
   uint64 PPN = lookup_pa(page_dir,(uint64)va);
-  if(PPN == 0)
-    return NULL;
-  else
-    return (void *)(PPN + ((uint64)va & ((1<<PGSHIFT) - 1)));
+  return (void *)(PPN + ((uint64)va & ((1<<PGSHIFT) - 1)));
 }
 
 //
@@ -189,16 +186,9 @@ void user_vm_unmap(pagetable_t page_dir, uint64 va, uint64 size, int free) {
   // as naive_free reclaims only one page at a time, you only need to consider one page
   // to make user/app_naive_malloc to behave correctly.
   pte_t* PTE = page_walk(page_dir,va,0);
-  if(PTE == NULL)
-    return;
-  else{
-    for(uint64 i = 0; i < size; i += PGSIZE){
-      if(free)
-        free_page((void*)(PTE2PA(*PTE)));
-      *PTE &= 0xfffffffffffffffe;
-      PTE++;
-    }
-  }
+  if(free)
+    free_page((void*)PTE2PA(*PTE));
+  *PTE &= (~PTE_V);
 }
 
 //

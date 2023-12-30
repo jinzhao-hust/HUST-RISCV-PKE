@@ -236,7 +236,7 @@ int do_fork( process* parent)
             parent->mapped_info[i].va + j * PGSIZE,
             PGSIZE,
             lookup_pa(parent->pagetable,parent->mapped_info[i].va + j * PGSIZE),
-            prot_to_type(PROT_READ | PROT_EXEC,1)) != 0){
+            prot_to_type(PROT_WRITE | PROT_READ | PROT_EXEC,1)) != 0){
                 panic("CODE_SEGMENT map failed!\n");
             }
         }
@@ -245,6 +245,21 @@ int do_fork( process* parent)
         child->mapped_info[child->total_mapped_region].npages =
           parent->mapped_info[i].npages;
         child->mapped_info[child->total_mapped_region].seg_type = CODE_SEGMENT;
+        child->total_mapped_region++;
+        break;
+      case  DATA_SEGMENT:
+        for( int j = 0; j < parent->mapped_info[i].npages; j++ ){
+          uint64 parent_va = parent->mapped_info[i].va + j * PGSIZE;
+          uint64 parent_pa = lookup_pa(parent->pagetable, parent_va);
+          uint64 child_va = parent_va;
+          void * child_pa = alloc_page();
+          memcpy(child_pa, (void *)parent_pa, PGSIZE);
+          map_pages(child->pagetable, child_va, PGSIZE, (uint64)child_pa, prot_to_type(PROT_WRITE | PROT_READ, 1));
+        }
+        child->mapped_info[child->total_mapped_region].va = parent->mapped_info[i].va;
+        child->mapped_info[child->total_mapped_region].npages = 
+          parent->mapped_info[i].npages;
+        child->mapped_info[child->total_mapped_region].seg_type = DATA_SEGMENT;
         child->total_mapped_region++;
         break;
     }
@@ -266,7 +281,7 @@ int do_wait(int pid){
         for(int i = 0; i < NPROC; i++){
             if(procs[i].parent == current && (procs[i].status == READY)){
                 current->status = BLOCKED;
-                procs[i].trapframe->wake_up_parent = 1;
+                procs[i].wake_up_parent = 1;
                 int sub_proc_pid = procs[i].pid;
                 schedule(); // 执行这个之后就直接切换进程了
                 return sub_proc_pid;
@@ -278,7 +293,7 @@ int do_wait(int pid){
             return -1;
         } else {
             current->status = BLOCKED;
-            procs[pid].trapframe->wake_up_parent = 1;
+            procs[pid].wake_up_parent = 1;
             schedule();
             return pid;
         }
@@ -286,7 +301,7 @@ int do_wait(int pid){
     return -1;
 }
 void wake_up_parent(void){
-    if(current->trapframe->wake_up_parent){
+    if(current->wake_up_parent){
         if (current->parent->status == BLOCKED) {
             current->parent->status = READY;
             insert_to_ready_queue(current->parent);
