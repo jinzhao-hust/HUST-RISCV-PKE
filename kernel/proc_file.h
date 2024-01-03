@@ -24,6 +24,10 @@ int do_closedir(int fd);
 int do_link(char *oldpath, char *newpath);
 int do_unlink(char *path);
 
+// // added @lab4_challenge1
+// int do_rcwd(char* pathname);
+// int do_ccwd(const char* pathname);
+// char* parse_path(char* resolved_path, char* pathname);
 void fs_init(void);
 
 // data structure that manages all openned files in a PCB

@@ -16,6 +16,94 @@
 #include "proc_file.h"
 
 #include "spike_interface/spike_utils.h"
+//
+// added @lab4_challenge1
+//
+void find_pwd_path(struct dentry* now, char record[]){
+//   char tmp[30];
+//   if (now->parent == NULL)
+//   {
+//     if(strlen(record)==0){
+//       tmp[0] = '/';
+//       tmp[1] = '\0';
+//     }
+//     else
+//     {
+//       tmp[0] = '\0';
+//     }
+//     strcat(tmp, record);
+//     strcpy(record, tmp);
+//   }
+//   else
+//   {
+//     tmp[0] = '/';
+//     tmp[1] = '\0';
+//     strcat(tmp, now->name);
+//     strcat(tmp, record);
+//     strcpy(record, tmp);
+//     find_pwd_path(now->parent, record);
+//   }
+  if(now -> parent == NULL){
+    record[0] = '/';
+    record[1] = '\0';
+    return ;
+  } else {
+    find_pwd_path(now->parent, record);
+    strcat(record, now->name);
+  }
+}
+
+char* parse_path(char* pathname, char* resolved_path){
+  if(pathname[0] == '/'){
+    // 绝对路径直接返回
+    return pathname;
+  }
+  // 获取当前目录
+  find_pwd_path(current->pfiles->cwd, resolved_path);
+  
+  size_t path_lengh = strlen(resolved_path);
+  if(resolved_path[path_lengh - 1] != '/'){
+    strcat(resolved_path,"/");
+  }
+  // copy
+  char path_copy[MAX_PATH_LEN];
+  strcpy(path_copy, pathname);
+  // 解析相对路径
+  char* token = strtok(path_copy, "/");
+  while(token != NULL){
+    if (strcmp(token,".") == 0) {
+      // 继续向后解析
+      goto next_part;
+    } else if (strcmp(token,"..") == 0) {
+      // 到根目录就继续向后解析
+      if(strlen(resolved_path) == 1) goto next_part;
+      // 去掉尾巴的/
+      char* las_seq = strrchr(resolved_path,'/');
+      if(las_seq != NULL) *las_seq = '\0';
+      // 去掉上级目录
+      las_seq = strrchr(resolved_path,'/');
+      if(las_seq != NULL) *las_seq = '\0';
+      // 加个/
+       strcat(resolved_path,"/");
+    } else {
+      // 文件名就直接添加到后面
+      strcat(resolved_path,token);
+      // 加个/
+      strcat(resolved_path,"/");
+    }
+    // 继续解析下一部分
+    next_part:
+    token = strtok(NULL, "/");
+  }
+  char* las_seq = strrchr(resolved_path,'/');
+  if(las_seq) *las_seq = '\0'; 
+  //sprint("resolved path : %s\n",resolved_path);
+  return resolved_path;
+}
+
+
+
+
 
 //
 // implement the SYS_user_print syscall
@@ -102,7 +190,10 @@ ssize_t sys_user_yield() {
 //
 ssize_t sys_user_open(char *pathva, int flags) {
   char* pathpa = (char*)user_va_to_pa((pagetable_t)(current->pagetable), pathva);
-  return do_open(pathpa, flags);
+  //sprint("sys call open %s \n",pathpa);
+  char resolved_path[MAX_PATH_LEN];
+  memset(resolved_path,0,MAX_PATH_LEN);
+  return do_open(parse_path(pathpa, resolved_path), flags);
 }
 
 //
@@ -219,8 +310,10 @@ ssize_t sys_user_unlink(char * vfn){
 // lib call to rcwd
 //
 ssize_t sys_user_rcwd(char* pathva){
-  //char* pathpa = (char*)user_va_to_pa((pagetable_t)(current->pagetable),(void*)pathva);
-  strcpy(pathva,current->pfiles->cwd->name);
+  // sprint("sys call rcwd\n");
+  char* pathpa = (char*)user_va_to_pa((pagetable_t)(current->pagetable),(void*)pathva);
+  memset(pathpa, 0, MAX_PATH_LEN);
+  find_pwd_path(current->pfiles->cwd,pathpa);
   return 0;
 }
 //
@@ -228,8 +321,22 @@ ssize_t sys_user_rcwd(char* pathva){
 // 
 ssize_t sys_user_ccwd(const char* pathva){
   char* pathpa = (char*)user_va_to_pa((pagetable_t)(current->pagetable),(void*)pathva);
-  return do_ccwd(pathpa);
+  char new_path[MAX_DEVICE_NAME_LEN];
+  memset(new_path, '\0', MAX_DENTRY_NAME_LEN);
+  struct dentry *current_directory = current->pfiles->cwd;
+  parse_path(pathpa,new_path);
+  int fd = do_opendir(new_path);
+  current->pfiles->cwd = current->pfiles->opened_files[fd].f_dentry;
+  do_closedir(fd);
+  return 0;
 }
+
+
+
+
+
+
+
 //
 // [a0]: the syscall number; [a1] ... [a7]: arguments to the syscalls.
 // returns the code of success, (e.g., 0 means success, fail for otherwise)

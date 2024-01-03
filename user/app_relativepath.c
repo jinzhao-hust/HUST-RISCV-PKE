@@ -36,8 +36,9 @@ int main(int argc, char *argv[]) {
   write_u(fd, str, strlen(str));
   printu("write content: \n%s\n", str);
   close(fd);
-
-  fd = open("./ramfile", O_RDWR);
+//   char path[10] = "./ramfile"; 
+//   fd = open(path, O_RDWR);
+  fd = open("./ramfile",O_RDWR);
   printu("read: ./ramfile\n");
 
   read_u(fd, buf, MAXBUF);

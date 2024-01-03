@@ -81,8 +81,9 @@ struct file *get_opened_file(int fd) {
 //
 int do_open(char *pathname, int flags) {
   struct file *opened_file = NULL;
+//   char resolved_path[MAX_PATH_LEN];
+//   if ((opened_file = vfs_open(parse_path(pathname, resolved_path), flags)) == NULL) return -1;
   if ((opened_file = vfs_open(pathname, flags)) == NULL) return -1;
-
   int fd = 0;
   if (current->pfiles->nfiles >= MAX_FILES) {
     panic("do_open: no file entry for current process!\n");
@@ -221,3 +222,41 @@ int do_link(char *oldpath, char *newpath) {
 int do_unlink(char *path) {
   return vfs_unlink(path);
 }
+
+// //
+// //  change directiory added@lab4_challenge1
+// //
+// int do_ccwd(const char* pathname){
+//   char* final_path = NULL;
+//   char resolved_path[MAX_PATH_LEN];
+//   resolved_path[0] = '\0';
+//   final_path = parse_path((char*)pathname, resolved_path);
+
+//   struct dentry *parent = vfs_root_dentry; 
+//   char miss_name[MAX_PATH_LEN]; 
+//   struct dentry *file_dentry = lookup_final_dentry(final_path, &parent, miss_name);
+//   if (file_dentry == NULL) {
+//     sprint("FS: cannot find the file %s.\n", final_path);
+//     return -1;
+//   } else if(file_dentry->dentry_inode->type != DIR_I) {
+//     sprint("FS: %s is not a directory.\n", final_path);
+//     return -1;
+//   }
+//   current->pfiles->cwd = file_dentry;
+//   return 0;
+// }
+
+
+
+// //
+// // parse relative path added @lab4_challenge1
+// // 
+
+
+// int do_rcwd(char* pathname){
+//     char pwd_path[MAX_PATH_LEN];
+//     pwd_path[0] = '\0';
+//     find_pwd_path(current->pfiles->cwd,pwd_path);
+//     strcpy(pathname,pwd_path);
+//     return 0;
+// }

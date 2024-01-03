@@ -111,7 +111,7 @@ struct super_block *vfs_mount(const char *dev_name, int mnt_type) {
 struct file *vfs_open(const char *path, int flags) {
   struct dentry *parent = vfs_root_dentry; // we start the path lookup from root.
   char miss_name[MAX_PATH_LEN];
-
+//   sprint("vfs open path %s\n", path);
   // path lookup.
   struct dentry *file_dentry = lookup_final_dentry(path, &parent, miss_name);
 
