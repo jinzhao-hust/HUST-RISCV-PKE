@@ -16,6 +16,70 @@
 #include "util/string.h"
 
 //
+// 获取当前工作目录完整路径
+// added @lab4_challenge1
+//
+void find_pwd_path(struct dentry* now, char record[]){
+  if(now -> parent == NULL){
+    record[0] = '/';
+    record[1] = '\0';
+    return ;
+  } else {
+    find_pwd_path(now->parent, record);
+    strcat(record, now->name);
+  }
+}
+//
+// 解析相对路径获取绝对路径
+// added @lab4_challenge1
+//
+void parse_path(const char* pathname, char* resolved_path){
+  if(pathname[0] == '/'){
+    // 绝对路径直接返回
+    strcpy(resolved_path, pathname);
+  }
+  // 获取当前目录
+  find_pwd_path(current->pfiles->cwd, resolved_path);
+  
+  size_t path_lengh = strlen(resolved_path);
+  if(resolved_path[path_lengh - 1] != '/'){
+    strcat(resolved_path,"/");
+  }
+  // copy
+  char path_copy[MAX_PATH_LEN];
+  strcpy(path_copy, pathname);
+  // 解析相对路径
+  char* token = strtok(path_copy, "/");
+  while(token != NULL){
+    if (strcmp(token,".") == 0) {
+      // 继续向后解析
+      goto next_part;
+    } else if (strcmp(token,"..") == 0) {
+      // 到根目录就继续向后解析
+      if(strlen(resolved_path) == 1) goto next_part;
+      // 去掉尾巴的/
+      char* las_seq = strrchr(resolved_path,'/');
+      if(las_seq != NULL) *las_seq = '\0';
+      // 去掉上级目录
+      las_seq = strrchr(resolved_path,'/');
+      if(las_seq != NULL) *las_seq = '\0';
+      // 加个/
+       strcat(resolved_path,"/");
+    } else {
+      // 文件名就直接添加到后面
+      strcat(resolved_path,token);
+      // 加个/
+      strcat(resolved_path,"/");
+    }
+    // 继续解析下一部分
+    next_part:
+    token = strtok(NULL, "/");
+  }
+  char* las_seq = strrchr(resolved_path,'/');
+  if(las_seq) *las_seq = '\0'; 
+}
+
+//
 // initialize file system
 //
 void fs_init(void) {
@@ -81,9 +145,10 @@ struct file *get_opened_file(int fd) {
 //
 int do_open(char *pathname, int flags) {
   struct file *opened_file = NULL;
-//   char resolved_path[MAX_PATH_LEN];
-//   if ((opened_file = vfs_open(parse_path(pathname, resolved_path), flags)) == NULL) return -1;
-  if ((opened_file = vfs_open(pathname, flags)) == NULL) return -1;
+  char resolved_path[MAX_PATH_LEN];
+  memset(resolved_path,0,MAX_PATH_LEN);
+  parse_path(pathname,resolved_path);
+  if ((opened_file = vfs_open(resolved_path, flags)) == NULL) return -1;
   int fd = 0;
   if (current->pfiles->nfiles >= MAX_FILES) {
     panic("do_open: no file entry for current process!\n");
@@ -223,40 +288,27 @@ int do_unlink(char *path) {
   return vfs_unlink(path);
 }
 
-// //
-// //  change directiory added@lab4_challenge1
-// //
-// int do_ccwd(const char* pathname){
-//   char* final_path = NULL;
-//   char resolved_path[MAX_PATH_LEN];
-//   resolved_path[0] = '\0';
-//   final_path = parse_path((char*)pathname, resolved_path);
-
-//   struct dentry *parent = vfs_root_dentry; 
-//   char miss_name[MAX_PATH_LEN]; 
-//   struct dentry *file_dentry = lookup_final_dentry(final_path, &parent, miss_name);
-//   if (file_dentry == NULL) {
-//     sprint("FS: cannot find the file %s.\n", final_path);
-//     return -1;
-//   } else if(file_dentry->dentry_inode->type != DIR_I) {
-//     sprint("FS: %s is not a directory.\n", final_path);
-//     return -1;
-//   }
-//   current->pfiles->cwd = file_dentry;
-//   return 0;
-// }
+//
+//  change directiory added@lab4_challenge1
+//
+int do_ccwd(const char* pathname){
+  char resolved_path[MAX_PATH_LEN];
+  memset(resolved_path,0,MAX_PATH_LEN);
+  parse_path(pathname, resolved_path);
+  int fd = do_opendir(resolved_path);
+  if(fd == -1) return -1;
+  current->pfiles->cwd = current->pfiles->opened_files[fd].f_dentry;
+  return do_closedir(fd);
+}
 
 
+// 
+//  parse relative path added @lab4_challenge1
+//  
 
-// //
-// // parse relative path added @lab4_challenge1
-// // 
 
-
-// int do_rcwd(char* pathname){
-//     char pwd_path[MAX_PATH_LEN];
-//     pwd_path[0] = '\0';
-//     find_pwd_path(current->pfiles->cwd,pwd_path);
-//     strcpy(pathname,pwd_path);
-//     return 0;
-// }
+int do_rcwd(char* pathname){
+    memset(pathname, 0, MAX_PATH_LEN);
+    find_pwd_path(current->pfiles->cwd,pathname);
+    return 0;
+}

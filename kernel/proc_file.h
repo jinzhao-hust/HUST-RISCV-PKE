@@ -25,9 +25,10 @@ int do_link(char *oldpath, char *newpath);
 int do_unlink(char *path);
 
 // // added @lab4_challenge1
-// int do_rcwd(char* pathname);
-// int do_ccwd(const char* pathname);
-// char* parse_path(char* resolved_path, char* pathname);
+int do_rcwd(char* pathname);
+int do_ccwd(const char* pathname);
+void find_pwd_path(struct dentry* now, char record[]);
+void parse_path(const char* pathname, char* resolved_path);
 void fs_init(void);
 
 // data structure that manages all openned files in a PCB
