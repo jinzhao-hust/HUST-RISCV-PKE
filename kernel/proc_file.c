@@ -37,6 +37,7 @@ void parse_path(const char* pathname, char* resolved_path){
   if(pathname[0] == '/'){
     // 绝对路径直接返回
     strcpy(resolved_path, pathname);
+    return ;
   }
   // 获取当前目录
   find_pwd_path(current->pfiles->cwd, resolved_path);
@@ -233,7 +234,10 @@ int do_close(int fd) {
 //
 int do_opendir(char *pathname) {
   struct file *opened_file = NULL;
-  if ((opened_file = vfs_opendir(pathname)) == NULL) return -1;
+  char resolved_path[MAX_PATH_LEN];
+  memset(resolved_path,0,MAX_PATH_LEN);
+  parse_path(pathname, resolved_path);
+  if ((opened_file = vfs_opendir(resolved_path)) == NULL) return -1;
 
   int fd = 0;
   struct file *pfile;
@@ -263,7 +267,10 @@ int do_readdir(int fd, struct dir *dir) {
 // make a new directory
 //
 int do_mkdir(char *pathname) {
-  return vfs_mkdir(pathname);
+  char resolved_path[MAX_PATH_LEN];
+  memset(resolved_path,0,MAX_PATH_LEN);
+  parse_path(pathname,resolved_path);
+  return vfs_mkdir(resolved_path);
 }
 
 //
@@ -292,10 +299,7 @@ int do_unlink(char *path) {
 //  change directiory added@lab4_challenge1
 //
 int do_ccwd(const char* pathname){
-  char resolved_path[MAX_PATH_LEN];
-  memset(resolved_path,0,MAX_PATH_LEN);
-  parse_path(pathname, resolved_path);
-  int fd = do_opendir(resolved_path);
+  int fd = do_opendir((char*)pathname);
   if(fd == -1) return -1;
   current->pfiles->cwd = current->pfiles->opened_files[fd].f_dentry;
   return do_closedir(fd);
@@ -303,7 +307,7 @@ int do_ccwd(const char* pathname){
 
 
 // 
-//  parse relative path added @lab4_challenge1
+// get current working path
 //  
 
 
