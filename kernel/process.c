@@ -205,22 +205,23 @@ int do_fork( process* parent)
             free_block_filter[index] = 1;
           }
 
-          // copy and map the heap blocks
           for (uint64 heap_block = current->user_heap.heap_bottom;
-              heap_block < current->user_heap.heap_top; heap_block += PGSIZE) {
+          heap_block < current->user_heap.heap_top; heap_block += PGSIZE) {
             if (free_block_filter[(heap_block - heap_bottom) / PGSIZE])  // skip free blocks
               continue;
-
-            void* child_pa = alloc_page();
-            memcpy(child_pa, (void*)lookup_pa(parent->pagetable, heap_block), PGSIZE);
-            user_vm_map((pagetable_t)child->pagetable, heap_block, PGSIZE, (uint64)child_pa,
-                        prot_to_type(PROT_WRITE | PROT_READ, 1));
+           
+            uint64 pa = lookup_pa(parent->pagetable, heap_block);
+            sprint("va : %lx, va+size : %lx pa : %lx\n", heap_block, heap_block + PGSIZE, pa);
+            user_vm_map((pagetable_t)child->pagetable, heap_block, PGSIZE, pa,
+                        prot_to_type(PROT_READ, 1) | PTE_COW);            
+            // 增加引用计数
+            mem_ref[pa/PGSIZE].cnt += 1;
+            // 将父进程的PTE标记为只读
+            pte_t *parent_pte = page_walk(parent->pagetable, heap_block, 0);
+            *parent_pte &= ~PTE_W;
+            *parent_pte |= PTE_COW;
+            
           }
-
-          child->mapped_info[HEAP_SEGMENT].npages = parent->mapped_info[HEAP_SEGMENT].npages;
-
-          // copy the heap manager from parent to child
-          memcpy((void*)&child->user_heap, (void*)&parent->user_heap, sizeof(parent->user_heap));
           break;
         }
       case CODE_SEGMENT:

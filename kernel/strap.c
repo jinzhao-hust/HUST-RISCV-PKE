@@ -10,7 +10,7 @@
 #include "vmm.h"
 #include "sched.h"
 #include "util/functions.h"
-
+#include "util/string.h"
 #include "spike_interface/spike_utils.h"
 
 //
@@ -60,11 +60,26 @@ void handle_user_page_fault(uint64 mcause, uint64 sepc, uint64 stval) {
       // dynamically increase application stack.
       // hint: first allocate a new physical page, and then, maps the new page to the
       // virtual address that causes the page fault.
-      uint64 new_pa = (uint64)alloc_page();
-      if(new_pa == 0) panic("alloc_page failed.\n");
-      if(map_pages(current->pagetable,ROUNDDOWN(stval,PGSIZE),PGSIZE,new_pa,prot_to_type(PROT_READ|PROT_WRITE,1)))
-        panic("map_pages failed.\n");
-      break;
+      pte_t *pte = page_walk(current->pagetable, stval, 0);
+      if(*pte & PTE_COW)
+      {
+        void* new_pa = alloc_page();
+        uint64 old_pa = lookup_pa(current->pagetable, stval);
+        memcpy(new_pa, (void*)old_pa, PGSIZE);
+        // Map the new page as read-write in the current process
+        *pte &= ~PTE_V;
+        user_vm_map(current->pagetable, ROUNDDOWN(stval,PGSIZE), PGSIZE, (uint64)new_pa,
+                    prot_to_type(PROT_WRITE | PROT_READ, 1));
+        // Clear the COW bit in the PTE
+        *pte &= ~PTE_COW;
+        mem_ref[old_pa/PGSIZE].cnt -= 1;
+        break;
+      }else{
+        uint64 new_pa = (uint64)alloc_page();
+        if(new_pa == 0) panic("alloc_page failed.\n");
+        user_vm_map(current->pagetable,ROUNDDOWN(stval,PGSIZE),PGSIZE,new_pa,prot_to_type(PROT_READ|PROT_WRITE,1));
+        break;
+      }
     default:
       sprint("unknown page fault.\n");
       break;
