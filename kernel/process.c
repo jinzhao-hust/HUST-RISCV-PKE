@@ -211,7 +211,7 @@ int do_fork( process* parent)
               continue;
            
             uint64 pa = lookup_pa(parent->pagetable, heap_block);
-            sprint("va : %lx, va+size : %lx pa : %lx\n", heap_block, heap_block + PGSIZE, pa);
+            // sprint("va : %lx, va+size : %lx pa : %lx\n", heap_block, heap_block + PGSIZE, pa);
             user_vm_map((pagetable_t)child->pagetable, heap_block, PGSIZE, pa,
                         prot_to_type(PROT_READ, 1) | PTE_COW);            
             // 增加引用计数
@@ -235,16 +235,10 @@ int do_fork( process* parent)
         // segment of parent process.
         // DO NOT COPY THE PHYSICAL PAGES, JUST MAP THEM.
         // panic( "You need to implement the code segment mapping of child in lab3_1.\n" );
-        for(int j = 0; j < parent->mapped_info[i].npages; j++){
-            if(map_pages(child->pagetable,
-            parent->mapped_info[i].va + j * PGSIZE,
-            PGSIZE,
-            lookup_pa(parent->pagetable,parent->mapped_info[i].va + j * PGSIZE),
-            prot_to_type(PROT_READ | PROT_EXEC,1)) != 0){
-                panic("CODE_SEGMENT map failed!\n");
-            }
-        }
+        user_vm_map(child->pagetable, parent->mapped_info[i].va, parent->mapped_info[i].npages * PGSIZE, 
+          lookup_pa(parent->pagetable, parent->mapped_info[i].va), prot_to_type(PROT_EXEC | PROT_READ, 1));
         // after mapping, register the vm region (do not delete codes below!)
+        sprint("do_fork map code segment at pa:%lx of parent to child at va:%lx.\n",lookup_pa(parent->pagetable, parent->mapped_info[i].va), parent->mapped_info[i].va);
         child->mapped_info[child->total_mapped_region].va = parent->mapped_info[i].va;
         child->mapped_info[child->total_mapped_region].npages =
           parent->mapped_info[i].npages;
